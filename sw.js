@@ -1,4 +1,4 @@
-const CACHE_NAME = 'neon-arcade-v1';
+const CACHE_NAME = 'neon-arcade-v2';
 const ASSETS = ['./', './index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', (event) => {

@@ -5,6 +5,14 @@ Wordle, Car Race, Bus Parking, aur bahut kuch). PWA-ready hai — mobile
 ya desktop par "Add to Home Screen" / "Install" karke app jaisa use
 kar sakte ho.
 
+## Kya naya update hua
+- **Naya modern color theme**: sharp electric cyan, violet aur pink
+  gradients, deep-space background, glowing gradient-border cards
+- **Search bar** add hua — top par type karke turant 23 games mein se
+  koi bhi game filter/dhoond sakte ho
+- Header title ab gradient-text hai, icon aur PWA theme-color bhi
+  naye palette se match karte hain
+
 ## Files
 - `index.html` — poora app (sab games isi ek file mein hain)
 - `manifest.json` — PWA settings (app name, icon, theme color)

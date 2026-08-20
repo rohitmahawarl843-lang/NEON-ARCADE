@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEON ARCADE</title>
+<meta name="theme-color" content="#1a1423">
+<meta name="description" content="23 mini-games ek hi app mein - Snake, 2048, Tetris, Wordle aur bahut kuch">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rubik:wght@400;500;700;900&display=swap');
+
+  :root{
+    --bg: #1a1423;
+    --bg2: #241a30;
+    --panel: #2e1f3d;
+    --cyan: #ff9f1c;
+    --magenta: #e71d36;
+    --amber: #ffbf69;
+    --violet: #2ec4b6;
+    --text: #fdf4ec;
+    --muted: #a893a8;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Rubik',sans-serif;min-height:100vh;overflow-x:hidden;}
+  body{
+    background:
+      radial-gradient(circle at 20% 10%, rgba(231,29,54,0.18), transparent 40%),
+      radial-gradient(circle at 80% 0%, rgba(255,159,28,0.15), transparent 40%),
+      var(--bg);
+  }
+  .scanlines{
+    pointer-events:none; position:fixed; inset:0; z-index:999;
+    background:repeating-linear-gradient(to bottom, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 2px, transparent 4px);
+    mix-blend-mode:overlay;
+  }
+  header{
+    text-align:center; padding:36px 16px 20px;
+    position:relative;
+  }
+  .marquee{
+    font-family:'Press Start 2P', monospace;
+    font-size:clamp(20px, 5vw, 40px);
+    letter-spacing:2px;
+    color:var(--cyan);
+    text-shadow:0 0 8px var(--cyan), 0 0 24px rgba(45,226,230,0.5);
+    animation:flicker 4s infinite;
+  }
+  @keyframes flicker{
+    0%,19%,21%,23%,25%,54%,56%,100%{opacity:1;}
+    20%,24%,55%{opacity:0.75;}
+  }
+  .tagline{color:var(--muted); margin-top:10px; font-size:14px; letter-spacing:1px;}
+  .stats-bar{
+    display:flex; justify-content:center; gap:24px; margin-top:16px; flex-wrap:wrap;
+    font-family:'Press Start 2P', monospace; font-size:10px; color:var(--amber);
+  }
+  .stats-bar span b{color:var(--magenta);}
+
+  #home{max-width:1100px; margin:0 auto; padding:10px 20px 60px;}
+  .grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(160px,1fr)); gap:16px;
+  }
+  .card{
+    background:linear-gradient(160deg, var(--panel), var(--bg2));
+    border:2px solid rgba(123,97,255,0.25);
+    border-radius:14px;
+    padding:18px 14px;
+    cursor:pointer;
+    text-align:center;
+    transition:transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+    position:relative;
+    overflow:hidden;
+  }
+  .card:hover{
+    transform:translateY(-4px) scale(1.03);
+    border-color:var(--cyan);
+    box-shadow:0 8px 24px rgba(45,226,230,0.25);
+  }
+  .card .emoji{font-size:34px; display:block; margin-bottom:10px; filter:drop-shadow(0 0 6px rgba(255,255,255,0.15));}
+  .card .name{font-size:13px; font-weight:700; letter-spacing:.3px;}
+  .card .best{font-size:10px; color:var(--muted); margin-top:6px; font-family:'Press Start 2P',monospace;}
+  .card .best b{color:var(--amber);}
+
+  #gamearea{max-width:820px; margin:0 auto; padding:10px 16px 60px; display:none;}
+  .topbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .backbtn{
+    background:var(--panel); color:var(--cyan); border:2px solid var(--cyan);
+    padding:8px 16px; border-radius:8px; cursor:pointer; font-weight:700; font-size:14px;
+  }
+  .backbtn:hover{background:var(--cyan); color:var(--bg);}
+  .gtitle{font-family:'Press Start 2P',monospace; font-size:16px; color:var(--magenta); text-shadow:0 0 8px rgba(255,62,165,0.5);}
+
+  .panel{
+    background:var(--panel); border:2px solid rgba(123,97,255,0.25); border-radius:16px;
+    padding:20px; min-height:340px;
+  }
+  .msg{text-align:center; color:var(--muted); margin:10px 0; font-size:14px;}
+  .btn{
+    background:linear-gradient(135deg, var(--violet), var(--magenta));
+    color:#fff; border:none; padding:10px 20px; border-radius:8px; font-weight:700;
+    cursor:pointer; font-size:14px; margin:6px 4px;
+  }
+  .btn:hover{filter:brightness(1.15);}
+  .btn.secondary{background:var(--bg2); border:2px solid var(--cyan); color:var(--cyan);}
+  .center{text-align:center;}
+  .score{font-family:'Press Start 2P',monospace; color:var(--amber); font-size:14px; margin:8px 0;}
+
+  /* Tic Tac Toe */
+  .ttt-board{display:grid; grid-template-columns:repeat(3,80px); gap:6px; justify-content:center; margin:20px auto;}
+  .ttt-cell{width:80px; height:80px; background:var(--bg2); border:2px solid rgba(255,255,255,0.1); border-radius:8px;
+    display:flex; align-items:center; justify-content:center; font-size:36px; font-weight:900; cursor:pointer; color:var(--cyan);}
+  .ttt-cell:hover{border-color:var(--cyan);}
+
+  /* Memory */
+  .mem-board{display:grid; grid-template-columns:repeat(4,70px); gap:8px; justify-content:center; margin:16px auto;}
+  .mem-card{width:70px; height:70px; background:var(--bg2); border-radius:8px; display:flex; align-items:center; justify-content:center;
+    font-size:28px; cursor:pointer; border:2px solid rgba(255,255,255,0.1); user-select:none;}
+  .mem-card.flipped{background:var(--violet); border-color:var(--cyan);}
+  .mem-card.matched{background:rgba(45,226,230,0.15); border-color:var(--cyan); opacity:.6;}
+
+  /* Connect4 */
+  .c4-board{display:grid; grid-template-columns:repeat(7,44px); gap:5px; justify-content:center; margin:16px auto; background:#0e1330; padding:10px; border-radius:10px;}
+  .c4-cell{width:44px; height:44px; border-radius:50%; background:var(--bg2); cursor:pointer; border:2px solid rgba(255,255,255,0.08);}
+  .c4-cell.p1{background:var(--magenta);}
+  .c4-cell.p2{background:var(--amber);}
+
+  /* Minesweeper */
+  .ms-board{display:grid; grid-template-columns:repeat(8,36px); gap:3px; justify-content:center; margin:16px auto;}
+  .ms-cell{width:36px; height:36px; background:var(--bg2); border:2px solid rgba(255,255,255,0.1); border-radius:5px;
+    display:flex; align-items:center; justify-content:center; font-size:15px; font-weight:800; cursor:pointer;}
+  .ms-cell.open{background:rgba(255,255,255,0.05); cursor:default;}
+  .ms-cell.mine{background:var(--magenta);}
+  .ms-cell.flag{color:var(--amber);}
+
+  canvas{background:#000; border-radius:10px; display:block; margin:0 auto; border:2px solid rgba(255,255,255,0.1); max-width:100%;}
+
+  .simon-grid{display:grid; grid-template-columns:repeat(2,100px); gap:8px; justify-content:center; margin:20px auto;}
+  .simon-btn{width:100px; height:100px; border-radius:14px; cursor:pointer; border:none; opacity:.5;}
+  .simon-btn.active{opacity:1; box-shadow:0 0 30px currentColor;}
+  #s0{background:#ff3ea5; color:#ff3ea5;} #s1{background:#2de2e6; color:#2de2e6;}
+  #s2{background:#ffb703; color:#ffb703;} #s3{background:#7b61ff; color:#7b61ff;}
+
+  input[type=text], input[type=number]{
+    background:var(--bg2); border:2px solid rgba(255,255,255,0.15); color:var(--text);
+    padding:8px 12px; border-radius:8px; font-size:14px; text-align:center;
+  }
+  .wam-grid{display:grid; grid-template-columns:repeat(3,90px); gap:10px; justify-content:center; margin:16px auto;}
+  .wam-hole{width:90px; height:90px; background:#3b2a1a; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:40px; cursor:pointer; border:3px solid #5c4326;}
+
+  @media(max-width:480px){
+    .ttt-board{grid-template-columns:repeat(3,64px);}
+    .ttt-cell{width:64px; height:64px; font-size:28px;}
+    .mem-board{grid-template-columns:repeat(4,58px);}
+    .mem-card{width:58px; height:58px; font-size:22px;}
+    .c4-board{grid-template-columns:repeat(7,36px);}
+    .c4-cell{width:36px; height:36px;}
+    .wam-grid{grid-template-columns:repeat(3,72px);}
+    .wam-hole{width:72px; height:72px; font-size:32px;}
+  }
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+<header>
+  <div class="marquee">⚡ NEON ARCADE ⚡</div>
+  <div class="tagline">15 mini-games • ek hi jagah • bina download ke</div>
+</header>
+
+<div id="home">
+  <div class="grid" id="gameGrid"></div>
+</div>
+
+<div id="gamearea">
+  <div class="topbar">
+    <button class="backbtn" onclick="goHome()">⬅ HOME</button>
+    <div class="gtitle" id="gtitle"></div>
+    <div style="width:70px"></div>
+  </div>
+  <div class="panel" id="panel"></div>
+</div>
+
+<script>
+const GAMES = [
+  {id:'ttt', name:'Tic Tac Toe', emoji:'❌⭕'},
+  {id:'rps', name:'Rock Paper Scissors', emoji:'✊✋✌️'},
+  {id:'memory', name:'Memory Match', emoji:'🧠'},
+  {id:'snake', name:'Snake', emoji:'🐍'},
+  {id:'g2048', name:'2048', emoji:'🔢'},
+  {id:'wam', name:'Whack-a-Mole', emoji:'🔨'},
+  {id:'simon', name:'Simon Says', emoji:'🎵'},
+  {id:'guess', name:'Guess the Number', emoji:'🎯'},
+  {id:'reaction', name:'Reaction Test', emoji:'⚡'},
+  {id:'mathquiz', name:'Math Quiz', emoji:'➗'},
+  {id:'scramble', name:'Word Scramble', emoji:'🔤'},
+  {id:'connect4', name:'Connect Four', emoji:'🔴🟡'},
+  {id:'mines', name:'Minesweeper', emoji:'💣'},
+  {id:'pong', name:'Pong', emoji:'🏓'},
+  {id:'flappy', name:'Flappy Bird', emoji:'🐦'},
+  {id:'carrace', name:'Car Race', emoji:'🏎️'},
+  {id:'busparking', name:'Bus Parking', emoji:'🚌'},
+  {id:'tetris', name:'Tetris', emoji:'🧱'},
+  {id:'hangman', name:'Hangman', emoji:'🪢'},
+  {id:'bikerace', name:'Bike Jump', emoji:'🏍️'},
+  {id:'wordle', name:'Wordle', emoji:'🟩'},
+  {id:'stack', name:'Stack Tower', emoji:'🗼'},
+  {id:'fruitslice', name:'Fruit Slice', emoji:'🍉'},
+];
+
+let bestScores = {};
+
+function renderHome(){
+  const grid = document.getElementById('gameGrid');
+  grid.innerHTML = '';
+  GAMES.forEach(g=>{
+    const card = document.createElement('div');
+    card.className='card';
+    card.onclick = ()=> openGame(g.id, g.name);
+    const best = bestScores[g.id];
+    card.innerHTML = `<span class="emoji">${g.emoji}</span><div class="name">${g.name}</div>
+      <div class="best">${best!==undefined ? 'BEST: <b>'+best+'</b>' : ''}</div>`;
+    grid.appendChild(card);
+  });
+}
+
+let currentCleanup = null;
+
+function openGame(id, name){
+  document.getElementById('home').style.display='none';
+  document.getElementById('gamearea').style.display='block';
+  document.getElementById('gtitle').textContent = name;
+  const panel = document.getElementById('panel');
+  panel.innerHTML='';
+  if(currentCleanup){ try{currentCleanup();}catch(e){} currentCleanup=null; }
+  const initFn = window['init_'+id];
+  if(initFn) currentCleanup = initFn(panel) || null;
+}
+
+function goHome(){
+  if(currentCleanup){ try{currentCleanup();}catch(e){} currentCleanup=null; }
+  document.getElementById('gamearea').style.display='none';
+  document.getElementById('home').style.display='block';
+  renderHome();
+}
+
+function setBest(id, value, higherIsBetter=true){
+  const cur = bestScores[id];
+  if(cur===undefined || (higherIsBetter ? value>cur : value<cur)){
+    bestScores[id]=value;
+  }
+}
+
+renderHome();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+
+<script>
+/* ========== TIC TAC TOE ========== */
+function init_ttt(panel){
+  let board = Array(9).fill('');
+  let turn = 'X';
+  let over = false;
+  panel.innerHTML = `<div class="msg" id="tttMsg">Turn: X</div><div class="ttt-board" id="tttBoard"></div>
+    <div class="center"><button class="btn secondary" onclick="init_ttt(document.getElementById('panel'))">Restart</button></div>`;
+  const boardEl = document.getElementById('tttBoard');
+  const msg = document.getElementById('tttMsg');
+  function draw(){
+    boardEl.innerHTML='';
+    board.forEach((v,i)=>{
+      const c = document.createElement('div');
+      c.className='ttt-cell';
+      c.textContent=v;
+      c.style.color = v==='X' ? 'var(--cyan)' : 'var(--magenta)';
+      c.onclick=()=>move(i);
+      boardEl.appendChild(c);
+    });
+  }
+  function checkWin(b){
+    const lines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    for(const [a,b1,c] of lines){ if(b[a] && b[a]===b[b1] && b[a]===b[c]) return b[a]; }
+    if(b.every(x=>x)) return 'draw';
+    return null;
+  }
+  function move(i){
+    if(over || board[i]) return;
+    board[i]=turn;
+    const res = checkWin(board);
+    if(res){
+      over=true;
+      msg.textContent = res==='draw' ? "Draw ho gaya!" : `${res} jeet gaya! 🎉`;
+      draw();
+      return;
+    }
+    turn = turn==='X'?'O':'X';
+    msg.textContent = 'Turn: '+turn;
+    draw();
+  }
+  draw();
+}
+
+/* ========== ROCK PAPER SCISSORS ========== */
+function init_rps(panel){
+  let score={w:0,l:0,d:0};
+  panel.innerHTML = `
+    <div class="center">
+      <div class="score" id="rpsScore">W:0 L:0 D:0</div>
+      <div class="msg" id="rpsMsg">Choose your move</div>
+      <div style="font-size:60px; margin:16px;" id="rpsResult">🤖</div>
+      <button class="btn" onclick="rpsPlay('rock')">✊ Rock</button>
+      <button class="btn" onclick="rpsPlay('paper')">✋ Paper</button>
+      <button class="btn" onclick="rpsPlay('scissors')">✌️ Scissors</button>
+    </div>`;
+  window.rpsPlay = function(choice){
+    const options=['rock','paper','scissors'];
+    const emoji={rock:'✊',paper:'✋',scissors:'✌️'};
+    const comp = options[Math.floor(Math.random()*3)];
+    let result;
+    if(choice===comp) result='draw';
+    else if((choice==='rock'&&comp==='scissors')||(choice==='paper'&&comp==='rock')||(choice==='scissors'&&comp==='paper')) result='win';
+    else result='lose';
+    if(result==='win') score.w++; else if(result==='lose') score.l++; else score.d++;
+    document.getElementById('rpsResult').textContent = emoji[choice]+' vs '+emoji[comp];
+    document.getElementById('rpsMsg').textContent = result==='win'?'Aap jeet gaye! 🎉':result==='lose'?'Aap haar gaye 😢':'Draw!';
+    document.getElementById('rpsScore').textContent = `W:${score.w} L:${score.l} D:${score.d}`;
+    setBest('rps', score.w);
+  };
+}
+
+/* ========== MEMORY MATCH ========== */
+function init_memory(panel){
+  const emojis = ['🍎','🍌','🍇','🍉','🍒','🍕','🎮','⚽'];
+  let cards = [...emojis, ...emojis].sort(()=>Math.random()-0.5);
+  let flipped=[]; let matched=[]; let moves=0; let lock=false;
+  panel.innerHTML = `<div class="center"><div class="score">Moves: <span id="memMoves">0</span></div>
+    <div class="mem-board" id="memBoard"></div></div>`;
+  const boardEl = document.getElementById('memBoard');
+  function draw(){
+    boardEl.innerHTML='';
+    cards.forEach((v,i)=>{
+      const c = document.createElement('div');
+      c.className='mem-card'+(matched.includes(i)?' matched':(flipped.includes(i)?' flipped':''));
+      c.textContent = (flipped.includes(i)||matched.includes(i)) ? v : '❔';
+      c.onclick=()=>flip(i);
+      boardEl.appendChild(c);
+    });
+  }
+  function flip(i){
+    if(lock || flipped.includes(i) || matched.includes(i)) return;
+    flipped.push(i);
+    draw();
+    if(flipped.length===2){
+      moves++;
+      document.getElementById('memMoves').textContent=moves;
+      lock=true;
+      setTimeout(()=>{
+        const [a,b]=flipped;
+        if(cards[a]===cards[b]){ matched.push(a,b); }
+        flipped=[];
+        lock=false;
+        draw();
+        if(matched.length===cards.length){
+          setBest('memory', moves, false);
+          setTimeout(()=>alert('Complete! Moves: '+moves),200);
+        }
+      },700);
+    }
+  }
+  draw();
+}
+
+/* ========== SNAKE ========== */
+function init_snake(panel){
+  panel.innerHTML = `<div class="center"><div class="score">Score: <span id="snakeScore">0</span></div>
+    <canvas id="snakeCanvas" width="320" height="320"></canvas>
+    <div class="msg">Arrow keys se control karo</div></div>`;
+  const canvas = document.getElementById('snakeCanvas');
+  const ctx = canvas.getContext('2d');
+  const grid=16, cells=20;
+  let snake=[{x:10,y:10}], dir={x:1,y:0}, nextDir={x:1,y:0}, food=spawnFood(), score=0, dead=false;
+  function spawnFood(){ return {x:Math.floor(Math.random()*cells), y:Math.floor(Math.random()*cells)}; }
+  function keyHandler(e){
+    const map={ArrowUp:{x:0,y:-1},ArrowDown:{x:0,y:1},ArrowLeft:{x:-1,y:0},ArrowRight:{x:1,y:0}};
+    const nd = map[e.key];
+    if(nd && !(nd.x===-dir.x && nd.y===-dir.y)) nextDir=nd;
+  }
+  document.addEventListener('keydown', keyHandler);
+  function tick(){
+    if(dead) return;
+    dir=nextDir;
+    const head={x:snake[0].x+dir.x, y:snake[0].y+dir.y};
+    if(head.x<0||head.y<0||head.x>=cells||head.y>=cells||snake.some(s=>s.x===head.x&&s.y===head.y)){
+      dead=true;
+      setBest('snake', score);
+      ctx.fillStyle='#fff'; ctx.font='20px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('Game Over! Score: '+score, 160, 160);
+      return;
+    }
+    snake.unshift(head);
+    if(head.x===food.x && head.y===food.y){ score++; document.getElementById('snakeScore').textContent=score; food=spawnFood(); }
+    else snake.pop();
+    draw();
+  }
+  function draw(){
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,320,320);
+    ctx.fillStyle='#ff3ea5'; ctx.fillRect(food.x*grid, food.y*grid, grid-1, grid-1);
+    ctx.fillStyle='#2de2e6';
+    snake.forEach(s=>ctx.fillRect(s.x*grid, s.y*grid, grid-1, grid-1));
+  }
+  draw();
+  const iv = setInterval(tick, 120);
+  return ()=>{ clearInterval(iv); document.removeEventListener('keydown', keyHandler); };
+}
+
+/* ========== 2048 ========== */
+function init_g2048(panel){
+  panel.innerHTML = `<div class="center"><div class="score">Score: <span id="g48Score">0</span></div>
+    <canvas id="g48Canvas" width="320" height="320"></canvas>
+    <div class="msg">Arrow keys se tiles slide karo</div></div>`;
+  const canvas=document.getElementById('g48Canvas'); const ctx=canvas.getContext('2d');
+  let grid = Array(4).fill().map(()=>Array(4).fill(0));
+  let score=0;
+  const colors={0:'#161b32',2:'#2de2e6',4:'#7b61ff',8:'#ff3ea5',16:'#ffb703',32:'#ff6b6b',64:'#4ecdc4',128:'#ffe66d',256:'#a685e2',512:'#f38181',1024:'#95e1d3',2048:'#fce38a'};
+  function addTile(){
+    const empty=[]; grid.forEach((row,y)=>row.forEach((v,x)=>{if(v===0) empty.push({x,y});}));
+    if(empty.length===0) return;
+    const {x,y}=empty[Math.floor(Math.random()*empty.length)];
+    grid[y][x]= Math.random()<0.9?2:4;
+  }
+  function draw(){
+    ctx.fillStyle='#0b0e1a'; ctx.fillRect(0,0,320,320);
+    for(let y=0;y<4;y++) for(let x=0;x<4;x++){
+      const v=grid[y][x];
+      ctx.fillStyle = colors[v]||'#fce38a';
+      ctx.fillRect(x*80+4,y*80+4,72,72);
+      if(v){
+        ctx.fillStyle = v<=4?'#0b0e1a':'#fff';
+        ctx.font='bold 24px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(v, x*80+40, y*80+40);
+      }
+    }
+  }
+  function slide(row){
+    let arr = row.filter(v=>v!==0);
+    for(let i=0;i<arr.length-1;i++){
+      if(arr[i]===arr[i+1]){ arr[i]*=2; score+=arr[i]; arr.splice(i+1,1); }
+    }
+    while(arr.length<4) arr.push(0);
+    return arr;
+  }
+  function move(dir){
+    let moved=false;
+    const before = JSON.stringify(grid);
+    if(dir==='left'){ grid = grid.map(row=>slide(row)); }
+    if(dir==='right'){ grid = grid.map(row=>slide(row.slice().reverse()).reverse()); }
+    if(dir==='up'){
+      for(let x=0;x<4;x++){ let col=[grid[0][x],grid[1][x],grid[2][x],grid[3][x]]; col=slide(col); for(let y=0;y<4;y++) grid[y][x]=col[y]; }
+    }
+    if(dir==='down'){
+      for(let x=0;x<4;x++){ let col=[grid[3][x],grid[2][x],grid[1][x],grid[0][x]]; col=slide(col); for(let y=0;y<4;y++) grid[3-y][x]=col[y]; }
+    }
+    if(before!==JSON.stringify(grid)){ addTile(); document.getElementById('g48Score').textContent=score; setBest('g2048', score); }
+    draw();
+  }
+  function keyHandler(e){
+    const map={ArrowLeft:'left',ArrowRight:'right',ArrowUp:'up',ArrowDown:'down'};
+    if(map[e.key]){ e.preventDefault(); move(map[e.key]); }
+  }
+  document.addEventListener('keydown', keyHandler);
+  addTile(); addTile(); draw();
+  return ()=>document.removeEventListener('keydown', keyHandler);
+}
+
+/* ========== WHACK A MOLE ========== */
+function init_wam(panel){
+  panel.innerHTML = `<div class="center"><div class="score">Score: <span id="wamScore">0</span> | Time: <span id="wamTime">20</span>s</div>
+    <div class="wam-grid" id="wamGrid"></div>
+    <button class="btn" id="wamStart">Start</button></div>`;
+  const gridEl = document.getElementById('wamGrid');
+  let holes=[]; let score=0; let time=20; let iv=null, moleIv=null; let active=-1;
+  for(let i=0;i<9;i++){
+    const h=document.createElement('div'); h.className='wam-hole'; h.textContent='';
+    h.onclick=()=>{ if(i===active){ score++; document.getElementById('wamScore').textContent=score; active=-1; h.textContent=''; } };
+    gridEl.appendChild(h); holes.push(h);
+  }
+  document.getElementById('wamStart').onclick = function(){
+    score=0; time=20; document.getElementById('wamScore').textContent=0;
+    this.disabled=true;
+    iv = setInterval(()=>{
+      time--; document.getElementById('wamTime').textContent=time;
+      if(time<=0){ clearInterval(iv); clearInterval(moleIv); holes.forEach(h=>h.textContent=''); setBest('wam',score); document.getElementById('wamStart').disabled=false; alert('Time up! Score: '+score); }
+    },1000);
+    moleIv = setInterval(()=>{
+      if(active>=0) holes[active].textContent='';
+      active = Math.floor(Math.random()*9);
+      holes[active].textContent='🐹';
+    },700);
+  };
+  return ()=>{ clearInterval(iv); clearInterval(moleIv); };
+}
+
+/* ========== SIMON SAYS ========== */
+function init_simon(panel){
+  panel.innerHTML = `<div class="center">
+    <div class="score">Round: <span id="simonRound">0</span></div>
+    <div class="simon-grid">
+      <button class="simon-btn" id="s0"></button><button class="simon-btn" id="s1"></button>
+      <button class="simon-btn" id="s2"></button><button class="simon-btn" id="s3"></button>
+    </div>
+    <div class="msg" id="simonMsg">Start dabao</div>
+    <button class="btn" id="simonStart">Start</button></div>`;
+  let seq=[]; let userSeq=[]; let accepting=false;
+  const btns=[0,1,2,3].map(i=>document.getElementById('s'+i));
+  function flash(i){
+    return new Promise(res=>{
+      btns[i].classList.add('active');
+      setTimeout(()=>{ btns[i].classList.remove('active'); res(); },400);
+    });
+  }
+  async function playSeq(){
+    accepting=false;
+    document.getElementById('simonMsg').textContent='Dekho...';
+    for(const i of seq){ await flash(i); await new Promise(r=>setTimeout(r,150)); }
+    accepting=true; userSeq=[];
+    document.getElementById('simonMsg').textContent='Ab dohrao';
+  }
+  function nextRound(){
+    seq.push(Math.floor(Math.random()*4));
+    document.getElementById('simonRound').textContent=seq.length-1;
+    playSeq();
+  }
+  btns.forEach((b,i)=>b.onclick=()=>{
+    if(!accepting) return;
+    flash(i);
+    userSeq.push(i);
+    const idx=userSeq.length-1;
+    if(userSeq[idx]!==seq[idx]){
+      accepting=false;
+      setBest('simon', seq.length-1);
+      document.getElementById('simonMsg').textContent='Galat! Score: '+(seq.length-1)+'. Restart dabao';
+      return;
+    }
+    if(userSeq.length===seq.length){ setTimeout(nextRound, 600); }
+  });
+  document.getElementById('simonStart').onclick=()=>{ seq=[]; nextRound(); };
+}
+
+/* ========== GUESS THE NUMBER ========== */
+function init_guess(panel){
+  let target=Math.floor(Math.random()*100)+1; let tries=0;
+  panel.innerHTML = `<div class="center">
+    <div class="msg">1 se 100 ke beech number socho</div>
+    <input type="number" id="guessInput" min="1" max="100">
+    <button class="btn" onclick="guessCheck()">Guess</button>
+    <div class="msg" id="guessMsg"></div>
+    <div class="score">Tries: <span id="guessTries">0</span></div></div>`;
+  window.guessCheck = function(){
+    const val = parseInt(document.getElementById('guessInput').value);
+    if(isNaN(val)) return;
+    tries++;
+    document.getElementById('guessTries').textContent=tries;
+    const msg = document.getElementById('guessMsg');
+    if(val===target){
+      msg.textContent = `Sahi! ${tries} tries mein! 🎉`;
+      setBest('guess', tries, false);
+      target=Math.floor(Math.random()*100)+1; tries=0;
+      document.getElementById('guessTries').textContent=0;
+    } else if(val<target){ msg.textContent='Aur bada number socho ⬆️'; }
+    else{ msg.textContent='Chota number socho ⬇️'; }
+  };
+}
+
+/* ========== REACTION TEST ========== */
+function init_reaction(panel){
+  panel.innerHTML = `<div class="center">
+    <div class="msg" id="reactMsg">Green hone par jaldi click karo</div>
+    <div id="reactBox" style="width:250px; height:150px; margin:20px auto; border-radius:12px; background:#444; cursor:pointer; display:flex; align-items:center; justify-content:center; font-weight:700;">Click to Start</div>
+    <div class="score" id="reactResult"></div></div>`;
+  const box = document.getElementById('reactBox');
+  let state='idle'; let startTime=0; let timeout=null;
+  box.onclick=()=>{
+    if(state==='idle'){
+      state='waiting'; box.style.background='#c0392b'; box.textContent='Ruko...';
+      const delay = 1000+Math.random()*2500;
+      timeout=setTimeout(()=>{
+        state='ready'; box.style.background='#27ae60'; box.textContent='CLICK NOW!'; startTime=Date.now();
+      }, delay);
+    } else if(state==='waiting'){
+      clearTimeout(timeout);
+      state='idle'; box.style.background='#444'; box.textContent='Bahut jaldi! Try again';
+    } else if(state==='ready'){
+      const rt = Date.now()-startTime;
+      document.getElementById('reactResult').textContent = 'Reaction time: '+rt+'ms';
+      setBest('reaction', rt, false);
+      state='idle'; box.style.background='#444'; box.textContent='Click to Start';
+    }
+  };
+  return ()=>clearTimeout(timeout);
+}
+
+/* ========== MATH QUIZ ========== */
+function init_mathquiz(panel){
+  let score=0; let time=30; let iv=null; let a,b,op,answer;
+  panel.innerHTML = `<div class="center">
+    <div class="score">Score: <span id="mqScore">0</span> | Time: <span id="mqTime">30</span>s</div>
+    <div class="msg" style="font-size:26px" id="mqQuestion">-</div>
+    <input type="number" id="mqInput"><button class="btn" onclick="mqSubmit()">Submit</button>
+    <div class="msg" id="mqMsg"></div></div>`;
+  function newQ(){
+    a=Math.floor(Math.random()*20)+1; b=Math.floor(Math.random()*20)+1;
+    const ops=['+','-','×']; op=ops[Math.floor(Math.random()*3)];
+    answer = op==='+'?a+b:op==='-'?a-b:a*b;
+    document.getElementById('mqQuestion').textContent = `${a} ${op} ${b} = ?`;
+    document.getElementById('mqInput').value='';
+  }
+  window.mqSubmit = function(){
+    const val=parseInt(document.getElementById('mqInput').value);
+    if(val===answer){ score++; document.getElementById('mqScore').textContent=score; document.getElementById('mqMsg').textContent='Sahi! ✅'; }
+    else{ document.getElementById('mqMsg').textContent='Galat, jawab: '+answer; }
+    newQ();
+  };
+  iv = setInterval(()=>{
+    time--; document.getElementById('mqTime').textContent=time;
+    if(time<=0){ clearInterval(iv); setBest('mathquiz',score); document.getElementById('mqQuestion').textContent='Time up!'; document.getElementById('mqMsg').textContent='Final score: '+score; }
+  },1000);
+  newQ();
+  return ()=>clearInterval(iv);
+}
+
+/* ========== WORD SCRAMBLE ========== */
+function init_scramble(panel){
+  const words=['ARCADE','GALAXY','ROCKET','PUZZLE','WIZARD','THUNDER','CRYSTAL','PHOENIX','JOURNEY','VELVET'];
+  let word, scrambled, score=0;
+  panel.innerHTML = `<div class="center">
+    <div class="score">Score: <span id="scScore">0</span></div>
+    <div class="msg" style="font-size:28px; letter-spacing:4px" id="scWord">-</div>
+    <input type="text" id="scInput" style="text-transform:uppercase">
+    <button class="btn" onclick="scSubmit()">Submit</button>
+    <button class="btn secondary" onclick="scSkip()">Skip</button>
+    <div class="msg" id="scMsg"></div></div>`;
+  function scrambleWord(w){
+    let arr=w.split('');
+    do{ arr.sort(()=>Math.random()-0.5); } while(arr.join('')===w);
+    return arr.join('');
+  }
+  function newWord(){
+    word = words[Math.floor(Math.random()*words.length)];
+    scrambled = scrambleWord(word);
+    document.getElementById('scWord').textContent=scrambled;
+    document.getElementById('scInput').value='';
+  }
+  window.scSubmit = function(){
+    const val = document.getElementById('scInput').value.toUpperCase();
+    if(val===word){ score++; document.getElementById('scScore').textContent=score; document.getElementById('scMsg').textContent='Sahi! 🎉'; setBest('scramble',score); }
+    else{ document.getElementById('scMsg').textContent='Galat try, jawab tha: '+word; }
+    newWord();
+  };
+  window.scSkip = function(){ document.getElementById('scMsg').textContent='Jawab tha: '+word; newWord(); };
+  newWord();
+}
+
+/* ========== CONNECT FOUR ========== */
+function init_connect4(panel){
+  let board = Array(6).fill().map(()=>Array(7).fill(0));
+  let turn=1; let over=false;
+  panel.innerHTML = `<div class="center"><div class="msg" id="c4Msg">Turn: Player 1 🔴</div>
+    <div class="c4-board" id="c4Board"></div>
+    <button class="btn secondary" onclick="init_connect4(document.getElementById('panel'))">Restart</button></div>`;
+  const boardEl=document.getElementById('c4Board');
+  function draw(){
+    boardEl.innerHTML='';
+    for(let y=0;y<6;y++) for(let x=0;x<7;x++){
+      const c=document.createElement('div');
+      c.className='c4-cell'+(board[y][x]===1?' p1':board[y][x]===2?' p2':'');
+      c.onclick=()=>drop(x);
+      boardEl.appendChild(c);
+    }
+  }
+  function checkWin(p){
+    for(let y=0;y<6;y++) for(let x=0;x<7;x++){
+      if(board[y][x]!==p) continue;
+      const dirs=[[1,0],[0,1],[1,1],[1,-1]];
+      for(const [dx,dy] of dirs){
+        let count=0;
+        for(let k=0;k<4;k++){
+          const ny=y+dy*k, nx=x+dx*k;
+          if(ny>=0&&ny<6&&nx>=0&&nx<7&&board[ny][nx]===p) count++; else break;
+        }
+        if(count===4) return true;
+      }
+    }
+    return false;
+  }
+  function drop(x){
+    if(over) return;
+    for(let y=5;y>=0;y--){
+      if(board[y][x]===0){
+        board[y][x]=turn;
+        if(checkWin(turn)){ over=true; document.getElementById('c4Msg').textContent=`Player ${turn} jeet gaya! 🎉`; draw(); return; }
+        turn = turn===1?2:1;
+        document.getElementById('c4Msg').textContent=`Turn: Player ${turn} ${turn===1?'🔴':'🟡'}`;
+        draw();
+        return;
+      }
+    }
+  }
+  draw();
+}
+
+/* ========== MINESWEEPER ========== */
+function init_mines(panel){
+  const size=8, mineCount=10;
+  let grid=[], revealed=[], flagged=[], over=false, firstClick=true;
+  panel.innerHTML = `<div class="center"><div class="msg" id="msMsg">Mines dhundo (right-click = flag)</div>
+    <div class="ms-board" id="msBoard"></div>
+    <button class="btn secondary" onclick="init_mines(document.getElementById('panel'))">Restart</button></div>`;
+  const boardEl=document.getElementById('msBoard');
+  function makeGrid(safeX,safeY){
+    grid = Array(size).fill().map(()=>Array(size).fill(0));
+    let placed=0;
+    while(placed<mineCount){
+      const x=Math.floor(Math.random()*size), y=Math.floor(Math.random()*size);
+      if(grid[y][x]===-1 || (Math.abs(x-safeX)<=1 && Math.abs(y-safeY)<=1)) continue;
+      grid[y][x]=-1; placed++;
+    }
+    for(let y=0;y<size;y++) for(let x=0;x<size;x++){
+      if(grid[y][x]===-1) continue;
+      let n=0;
+      for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+        const ny=y+dy,nx=x+dx;
+        if(ny>=0&&ny<size&&nx>=0&&nx<size&&grid[ny][nx]===-1) n++;
+      }
+      grid[y][x]=n;
+    }
+  }
+  revealed = Array(size).fill().map(()=>Array(size).fill(false));
+  flagged = Array(size).fill().map(()=>Array(size).fill(false));
+  function reveal(x,y){
+    if(x<0||x>=size||y<0||y>=size||revealed[y][x]||flagged[y][x]) return;
+    revealed[y][x]=true;
+    if(grid[y][x]===0){
+      for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++) reveal(x+dx,y+dy);
+    }
+  }
+  function checkWin(){
+    for(let y=0;y<size;y++) for(let x=0;x<size;x++){
+      if(grid[y][x]!==-1 && !revealed[y][x]) return false;
+    }
+    return true;
+  }
+  function draw(){
+    boardEl.innerHTML='';
+    for(let y=0;y<size;y++) for(let x=0;x<size;x++){
+      const c=document.createElement('div');
+      c.className='ms-cell'+(revealed[y][x]?' open':'')+(revealed[y][x]&&grid[y][x]===-1?' mine':'');
+      if(revealed[y][x]){
+        if(grid[y][x]===-1) c.textContent='💣';
+        else if(grid[y][x]>0){ c.textContent=grid[y][x]; c.style.color=['','#2de2e6','#7b61ff','#ff3ea5','#ffb703','#ff6b6b','#4ecdc4','#fff','#ccc'][grid[y][x]]; }
+      } else if(flagged[y][x]){ c.textContent='🚩'; c.classList.add('flag'); }
+      c.onclick=()=>{
+        if(over || flagged[y][x]) return;
+        if(firstClick){ makeGrid(x,y); firstClick=false; }
+        if(grid[y][x]===-1){
+          over=true;
+          for(let yy=0;yy<size;yy++) for(let xx=0;xx<size;xx++) if(grid[yy][xx]===-1) revealed[yy][xx]=true;
+          document.getElementById('msMsg').textContent='Boom! Game over 💥';
+          draw();
+          return;
+        }
+        reveal(x,y);
+        if(checkWin()){ over=true; document.getElementById('msMsg').textContent='Jeet gaye! 🎉'; setBest('mines',1); }
+        draw();
+      };
+      c.oncontextmenu=(e)=>{ e.preventDefault(); if(!revealed[y][x] && !over){ flagged[y][x]=!flagged[y][x]; draw(); } };
+      boardEl.appendChild(c);
+    }
+  }
+  draw();
+}
+
+/* ========== PONG ========== */
+function init_pong(panel){
+  panel.innerHTML = `<div class="center"><div class="score">You: <span id="pongYou">0</span> | CPU: <span id="pongCpu">0</span></div>
+    <canvas id="pongCanvas" width="320" height="240"></canvas>
+    <div class="msg">Mouse move karke paddle control karo</div></div>`;
+  const canvas=document.getElementById('pongCanvas'); const ctx=canvas.getContext('2d');
+  let playerY=100, cpuY=100, ballX=160, ballY=120, ballVX=3, ballVY=2;
+  let youScore=0, cpuScore=0;
+  const paddleH=50, paddleW=8;
+  function mouseHandler(e){
+    const rect=canvas.getBoundingClientRect();
+    playerY = (e.clientY-rect.top) - paddleH/2;
+    playerY = Math.max(0, Math.min(240-paddleH, playerY));
+  }
+  canvas.addEventListener('mousemove', mouseHandler);
+  function step(){
+    ballX+=ballVX; ballY+=ballVY;
+    if(ballY<=0||ballY>=240) ballVY*=-1;
+    if(ballX<=paddleW && ballY>playerY && ballY<playerY+paddleH){ ballVX*=-1.05; ballX=paddleW; }
+    if(ballX>=320-paddleW && ballY>cpuY && ballY<cpuY+paddleH){ ballVX*=-1.05; ballX=320-paddleW; }
+    if(ballX<0){ cpuScore++; document.getElementById('pongCpu').textContent=cpuScore; resetBall(); }
+    if(ballX>320){ youScore++; document.getElementById('pongYou').textContent=youScore; setBest('pong',youScore); resetBall(); }
+    const target = ballY-paddleH/2;
+    cpuY += (target-cpuY)*0.08;
+    cpuY = Math.max(0, Math.min(240-paddleH, cpuY));
+    draw();
+  }
+  function resetBall(){ ballX=160; ballY=120; ballVX=(Math.random()>0.5?3:-3); ballVY=2*(Math.random()>0.5?1:-1); }
+  function draw(){
+    ctx.fillStyle='#000'; ctx.fillRect(0,0,320,240);
+    ctx.fillStyle='#2de2e6'; ctx.fillRect(0,playerY,paddleW,paddleH);
+    ctx.fillStyle='#ff3ea5'; ctx.fillRect(320-paddleW,cpuY,paddleW,paddleH);
+    ctx.fillStyle='#ffb703'; ctx.beginPath(); ctx.arc(ballX,ballY,5,0,7); ctx.fill();
+  }
+  draw();
+  const iv=setInterval(step, 20);
+  return ()=>{ clearInterval(iv); canvas.removeEventListener('mousemove', mouseHandler); };
+}
+
+/* ========== FLAPPY BIRD ========== */
+function init_flappy(panel){
+  panel.innerHTML = `<div class="center"><div class="score">Score: <span id="flapScore">0</span></div>
+    <canvas id="flapCanvas" width="320" height="400"></canvas>
+    <div class="msg">Click/Space se udo</div></div>`;
+  const canvas=document.getElementById('flapCanvas'); const ctx=canvas.getContext('2d');
+  let birdY=200, vel=0, pipes=[], score=0, over=false, frame=0;
+  function flap(){
+    if(over){ birdY=200; vel=0; pipes=[]; score=0; over=false; frame=0; document.getElementById('flapScore').textContent=0; return; }
+    vel=-6;
+  }
+  function keyHandler(e){ if(e.code==='Space'){ e.preventDefault(); flap(); } }
+  document.addEventListener('keydown', keyHandler);
+  canvas.addEventListener('click', flap);
+  function step(){
+    if(!over){
+      frame++;
+      vel+=0.4; birdY+=vel;
+      if(frame%90===0){ const gapY=50+Math.random()*220; pipes.push({x:320, gapY, passed:false}); }
+      pipes.forEach(p=>p.x-=2.5);
+      pipes = pipes.filter(p=>p.x>-40);
+      pipes.forEach(p=>{
+        if(!p.passed && p.x<60){ p.passed=true; score++; document.getElementById('flapScore').textContent=score; setBest('flappy',score); }
+        if(p.x<80 && p.x>40 && (birdY<p.gapY-60 || birdY>p.gapY+60)) over=true;
+      });
+      if(birdY>400||birdY<0) over=true;
+    }
+    ctx.fillStyle='#1a2540'; ctx.fillRect(0,0,320,400);
+    ctx.fillStyle='#2de2e6';
+    pipes.forEach(p=>{
+      ctx.fillRect(p.x,0,30,p.gapY-60);
+      ctx.fillRect(p.x,p.gapY+60,30,400-(p.gapY+60));
+    });
+    ctx.fillStyle='#ffb703';
+    ctx.beginPath(); ctx.arc(60,birdY,12,0,7); ctx.fill();
+    if(over){ ctx.fillStyle='#fff'; ctx.font='18px sans-serif'; ctx.textAlign='center'; ctx.fillText('Game Over - click to retry', 160, 200); }
+  }
+  const iv=setInterval(step, 20);
+  return ()=>{ clearInterval(iv); document.removeEventListener('keydown', keyHandler); };
+}
+
+/* ========== CAR RACE ========== */
+function init_carrace(panel){
+  panel.innerHTML = `<div class="center"><div class="score">Score: <span id="carScore">0</span></div>
+    <canvas id="carCanvas" width="280" height="420"></canvas>
+    <div class="msg">Left/Right arrows se lane badlo, traffic bachao</div></div>`;
+  const canvas=document.getElementById('carCanvas'); const ctx=canvas.getContext('2d');
+  const lanes=[40,120,200]; // lane center x
+  let playerLane=1, playerX=lanes[1], targetX=lanes[1];
+  let traffic=[]; let score=0; let over=false; let speed=4; let frame=0; let roadOffset=0;
+
+  function keyHandler(e){
+    if(over && (e.key==='Enter'||e.key===' ')){ restart(); return; }
+    if(e.key==='ArrowLeft'){ playerLane=Math.max(0,playerLane-1); targetX=lanes[playerLane]; }
+    if(e.key==='ArrowRight'){ playerLane=Math.min(2,playerLane+1); targetX=lanes[playerLane]; }
+  }
+  document.addEventListener('keydown', keyHandler);
+  canvas.addEventListener('click', ()=>{ if(over) restart(); });
+
+  function restart(){
+    playerLane=1; playerX=lanes[1]; targetX=lanes[1];
+    traffic=[]; score=0; over=false; speed=4; frame=0;
+    document.getElementById('carScore').textContent=0;
+  }
+
+  function spawnTraffic(){
+    const lane = Math.floor(Math.random()*3);
+    // avoid spawning identical lane twice in a row too often - simple check
+    traffic.push({lane, y:-60, w:36, h:60, color:['#ff3ea5','#ffb703','#7b61ff','#4ecdc4'][Math.floor(Math.random()*4)]});
+  }
+
+  function step(){
+    if(!over){
+      frame++;
+      roadOffset=(roadOffset+speed)%40;
+      playerX += (targetX-playerX)*0.25;
+      if(frame%Math.max(30, 70-Math.floor(score/5))===0) spawnTraffic();
+      traffic.forEach(t=>t.y+=speed);
+      traffic = traffic.filter(t=>{
+        if(t.y>420){ score++; document.getElementById('carScore').textContent=score; setBest('carrace',score); speed=Math.min(9,4+score*0.1); return false; }
+        return true;
+      });
+      // collision check
+      const carW=34, carH=54, carYTop=420-70, carYBot=420-70+carH;
+      traffic.forEach(t=>{
+        const tx=lanes[t.lane];
+        if(Math.abs(tx-playerX)<(carW+t.w)/2 - 6 && (t.y+t.h)>carYTop && t.y<carYBot){
+          over=true; setBest('carrace',score);
+        }
+      });
+    }
+    // draw
+    ctx.fillStyle='#2a2a2a'; ctx.fillRect(0,0,280,420);
+    ctx.strokeStyle='#fff'; ctx.setLineDash([16,16]); ctx.lineWidth=3;
+    for(const lx of [80,160]){
+      ctx.beginPath(); ctx.moveTo(lx, roadOffset-40); ctx.lineTo(lx,420); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    // traffic
+    traffic.forEach(t=>{
+      ctx.fillStyle=t.color;
+      ctx.fillRect(lanes[t.lane]-t.w/2, t.y, t.w, t.h);
+    });
+    // player car
+    ctx.fillStyle='#2de2e6';
+    ctx.fillRect(playerX-17, 420-70, 34, 54);
+    ctx.fillStyle='#0b0e1a';
+    ctx.fillRect(playerX-13, 420-62, 26, 14);
+    if(over){
+      ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(0,150,280,100);
+      ctx.fillStyle='#fff'; ctx.font='16px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('Crash! Score: '+score, 140, 195);
+      ctx.fillText('Click / Enter to retry', 140, 220);
+    }
+  }
+  restart();
+  const iv=setInterval(step, 20);
+  return ()=>{ clearInterval(iv); document.removeEventListener('keydown', keyHandler); };
+}
+
+/* ========== BUS PARKING ========== */
+function init_busparking(panel){
+  panel.innerHTML = `<div class="center"><div class="score">Level: <span id="busLevel">1</span> | Time: <span id="busTime">30</span>s</div>
+    <canvas id="busCanvas" width="320" height="400"></canvas>
+    <div class="msg">Arrow Up/Down = chalna, Left/Right = mudna. Bus ko yellow slot mein park karo</div></div>`;
+  const canvas=document.getElementById('busCanvas'); const ctx=canvas.getContext('2d');
+  let bus, slot, obstacles, level=1, time=30, over=false, won=false, keys={};
+
+  function keyHandler(e){ keys[e.key]=true; if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault(); }
+  function keyUpHandler(e){ keys[e.key]=false; }
+  document.addEventListener('keydown', keyHandler);
+  document.addEventListener('keyup', keyUpHandler);
+  canvas.addEventListener('click', ()=>{ if(over||won) setup(); });
+
+  function setup(){
+    bus = {x:60, y:340, angle:0, w:44, h:22};
+    const slotX = 200+Math.random()*80;
+    const slotY = 40+Math.random()*60;
+    slot = {x:slotX, y:slotY, w:60, h:30};
+    obstacles=[];
+    for(let i=0;i<2+level;i++){
+      obstacles.push({x:80+Math.random()*160, y:120+Math.random()*160, w:24, h:24});
+    }
+    time=30; over=false; won=false;
+    document.getElementById('busLevel').textContent=level;
+    document.getElementById('busTime').textContent=time;
+  }
+
+  let timerIv = setInterval(()=>{
+    if(!over && !won){
+      time--; document.getElementById('busTime').textContent=Math.max(0,time);
+      if(time<=0){ over=true; }
+    }
+  },1000);
+
+  function rectsOverlap(a,b){
+    return Math.abs(a.x-b.x) < (a.w+b.w)/2 && Math.abs(a.y-b.y) < (a.h+b.h)/2;
+  }
+
+  function step(){
+    if(!over && !won){
+      const speed=2.2;
+      if(keys['ArrowUp']){ bus.x+=Math.cos(bus.angle)*speed; bus.y+=Math.sin(bus.angle)*speed; }
+      if(keys['ArrowDown']){ bus.x-=Math.cos(bus.angle)*speed; bus.y-=Math.sin(bus.angle)*speed; }
+      if(keys['ArrowLeft']) bus.angle-=0.045;
+      if(keys['ArrowRight']) bus.angle+=0.045;
+      bus.x=Math.max(20,Math.min(300,bus.x));
+      bus.y=Math.max(20,Math.min(380,bus.y));
+
+      obstacles.forEach(o=>{ if(rectsOverlap(bus,o)) over=true; });
+
+      const dx=Math.abs(bus.x-slot.x), dy=Math.abs(bus.y-slot.y);
+      const angleOk = Math.abs(((bus.angle%(Math.PI*2))+Math.PI*2)%(Math.PI*2) - 0) < 0.3 || Math.abs(((bus.angle%(Math.PI*2))+Math.PI*2)%(Math.PI*2) - Math.PI*2) < 0.3;
+      if(dx<14 && dy<10 && angleOk){
+        won=true; setBest('busparking', level);
+        level++;
+      }
+    }
+    ctx.fillStyle='#2a2a2a'; ctx.fillRect(0,0,320,400);
+    // slot
+    ctx.strokeStyle='#ffb703'; ctx.lineWidth=3; ctx.setLineDash([6,4]);
+    ctx.strokeRect(slot.x-slot.w/2, slot.y-slot.h/2, slot.w, slot.h);
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(255,183,3,0.15)';
+    ctx.fillRect(slot.x-slot.w/2, slot.y-slot.h/2, slot.w, slot.h);
+    // obstacles
+    ctx.fillStyle='#ff3ea5';
+    obstacles.forEach(o=>ctx.fillRect(o.x-o.w/2,o.y-o.h/2,o.w,o.h));
+    // bus
+    ctx.save();
+    ctx.translate(bus.x,bus.y);
+    ctx.rotate(bus.angle);
+    ctx.fillStyle='#2de2e6';
+    ctx.fillRect(-bus.w/2,-bus.h/2,bus.w,bus.h);
+    ctx.fillStyle='#0b0e1a';
+    ctx.fillRect(bus.w/2-8,-bus.h/2+3,6,bus.h-6);
+    ctx.restore();
+
+    if(over){
+      ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(0,160,320,80);
+      ctx.fillStyle='#fff'; ctx.font='16px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('Crash / Time up! Level: '+level, 160, 195);
+      ctx.fillText('Click to retry', 160, 218);
+    } else if(won){
+      ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(0,160,320,80);
+      ctx.fillStyle='#fff'; ctx.font='16px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('Parked! Next level: '+level, 160, 195);
+      ctx.fillText('Click to continue', 160, 218);
+    }
+  }
+  setup();
+  const iv=setInterval(step, 20);
+  return ()=>{ clearInterval(iv); clearInterval(timerIv); document.removeEventListener('keydown', keyHandler); document.removeEventListener('keyup', keyUpHandler); };
+}
+
+/* ========== TETRIS ========== */
+function init_tetris(panel){
+  panel.innerHTML = `<div class="center"><div class="score">Score: <span id="tetScore">0</span> Lines: <span id="tetLines">0</span></div>
+    <canvas id="tetCanvas" width="200" height="400"></canvas>
+    <div class="msg">←→ move, ↑ rotate, ↓ drop</div></div>`;
+  const canvas=document.getElementById('tetCanvas'); const ctx=canvas.getContext('2d');
+  const cols=10, rows=20, cell=20;
+  let grid = Array(rows).fill().map(()=>Array(cols).fill(0));
+  const shapes = {
+    I:[[1,1,1,1]], O:[[1,1],[1,1]], T:[[0,1,0],[1,1,1]],
+    S:[[0,1,1],[1,1,0]], Z:[[1,1,0],[0,1,1]], J:[[1,0,0],[1,1,1]], L:[[0,0,1],[1,1,1]]
+  };
+  const colors = {I:'#2de2e6',O:'#ffb703',T:'#7b61ff',S:'#4ecdc4',Z:'#ff3ea5',J:'#ff6b6b',L:'#95e1d3'};
+  let cur, curType, curX, curY, score=0, lines=0, over=false, dropCounter=0, dropInterval=500;
+
+  function newPiece(){
+    const keys=Object.keys(shapes);
+    curType = keys[Math.floor(Math.random()*keys.length)];
+    cur = shapes[curType].map(r=>r.slice());
+    curX = Math.floor(cols/2)-Math.ceil(cur[0].length/2);
+    curY = 0;
+    if(collide(cur,curX,curY)){ over=true; }
+  }
+  function rotate(m){
+    const h=m.length, w=m[0].length;
+    const res=Array(w).fill().map(()=>Array(h).fill(0));
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++) res[x][h-1-y]=m[y][x];
+    return res;
+  }
+  function collide(m,ox,oy){
+    for(let y=0;y<m.length;y++) for(let x=0;x<m[y].length;x++){
+      if(!m[y][x]) continue;
+      const gx=ox+x, gy=oy+y;
+      if(gx<0||gx>=cols||gy>=rows) return true;
+      if(gy>=0 && grid[gy][gx]) return true;
+    }
+    return false;
+  }
+  function merge(){
+    cur.forEach((row,y)=>row.forEach((v,x)=>{ if(v){ const gy=curY+y; if(gy>=0) grid[gy][curX+x]=curType; } }));
+  }
+  function clearLines(){
+    let cleared=0;
+    for(let y=rows-1;y>=0;y--){
+      if(grid[y].every(v=>v)){ grid.splice(y,1); grid.unshift(Array(cols).fill(0)); cleared++; y++; }
+    }
+    if(cleared){ lines+=cleared; score += [0,100,300,500,800][cleared]; document.getElementById('tetScore').textContent=score; document.getElementById('tetLines').textContent=lines; dropInterval=Math.max(120,500-lines*15); }
+  }
+  function drop(){
+    if(!collide(cur,curX,curY+1)){ curY++; }
+    else{ merge(); clearLines(); newPiece(); }
+    dropCounter=0;
+  }
+  function keyHandler(e){
+    if(over) return;
+    if(e.key==='ArrowLeft'){ if(!collide(cur,curX-1,curY)) curX--; }
+    if(e.key==='ArrowRight'){ if(!collide(cur,curX+1,curY)) curX++; }
+    if(e.key==='ArrowDown'){ drop(); }
+    if(e.key==='ArrowUp'){ const r=rotate(cur); if(!collide(r,curX,curY)) cur=r; }
+    draw();
+  }
+  document.addEventListener('keydown', keyHandler);
+  function draw(){
+    ctx.fillStyle='#0b0e1a'; ctx.fillRect(0,0,200,400);
+    for(let y=0;y<rows;y++) for(let x=0;x<cols;x++){
+      if(grid[y][x]){ ctx.fillStyle=colors[grid[y][x]]; ctx.fillRect(x*cell,y*cell,cell-1,cell-1); }
+    }
+    if(cur){
+      ctx.fillStyle=colors[curType];
+      cur.forEach((row,y)=>row.forEach((v,x)=>{ if(v){ const gy=curY+y; if(gy>=0) ctx.fillRect((curX+x)*cell,gy*cell,cell-1,cell-1); } }));
+    }
+    if(over){
+      ctx.fillStyle='rgba(0,0,0,0.7)'; ctx.fillRect(0,170,200,60);
+      ctx.fillStyle='#fff'; ctx.font='14px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('Game Over! Score: '+score, 100, 200);
+    }
+  }
+  newPiece();
+  draw();
+  const iv=setInterval(()=>{
+    if(!over){ dropCounter+=20; if(dropCounter>dropInterval) drop(); draw(); }
+  },20);
+  return ()=>{ clearInterval(iv); document.removeEventListener('keydown', keyHandler); };
+}
+
+/* ========== HANGMAN ========== */
+function init_hangman(panel){
+  const words = ['ELEPHANT','GUITAR','MOUNTAIN','PYTHON','CASTLE','DOLPHIN','JACKET','UMBRELLA','GALAXY','WIZARD'];
+  let word, guessed, wrong;
+  panel.innerHTML = `<div class="center">
+    <canvas id="hangCanvas" width="180" height="180"></canvas>
+    <div class="msg" style="font-size:26px; letter-spacing:6px" id="hangWord">-</div>
+    <div id="hangKeys" style="max-width:400px; margin:14px auto;"></div>
+    <div class="msg" id="hangMsg"></div>
+    <button class="btn secondary" onclick="init_hangman(document.getElementById('panel'))">New Word</button>
+  </div>`;
+  const canvas=document.getElementById('hangCanvas'); const ctx=canvas.getContext('2d');
+  function setup(){
+    word = words[Math.floor(Math.random()*words.length)];
+    guessed = new Set(); wrong=0;
+    const keysDiv=document.getElementById('hangKeys');
+    keysDiv.innerHTML='';
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(l=>{
+      const b=document.createElement('button');
+      b.className='btn secondary'; b.style.padding='6px 10px'; b.style.margin='2px'; b.style.fontSize='12px';
+      b.textContent=l;
+      b.onclick=()=>guess(l,b);
+      keysDiv.appendChild(b);
+    });
+    updateWord();
+    drawGallows();
+  }
+  function updateWord(){
+    document.getElementById('hangWord').textContent = word.split('').map(l=>guessed.has(l)?l:'_').join(' ');
+  }
+  function guess(l,btn){
+    if(btn.disabled) return;
+    btn.disabled=true;
+    if(word.includes(l)){
+      guessed.add(l);
+      updateWord();
+      if(word.split('').every(c=>guessed.has(c))){
+        document.getElementById('hangMsg').textContent='Jeet gaye! 🎉';
+        setBest('hangman',1);
+      }
+    } else {
+      wrong++;
+      drawGallows();
+      if(wrong>=6){
+        document.getElementById('hangMsg').textContent='Haar gaye! Word tha: '+word;
+        document.getElementById('hangWord').textContent = word.split('').join(' ');
+      }
+    }
+  }
+  function drawGallows(){
+    ctx.strokeStyle='#eef1ff'; ctx.lineWidth=3; ctx.clearRect(0,0,180,180);
+    ctx.beginPath();
+    ctx.moveTo(20,170); ctx.lineTo(100,170);
+    ctx.moveTo(40,170); ctx.lineTo(40,20);
+    ctx.lineTo(120,20); ctx.lineTo(120,40);
+    ctx.stroke();
+    ctx.strokeStyle='#ff3ea5';
+    if(wrong>=1){ ctx.beginPath(); ctx.arc(120,55,15,0,7); ctx.stroke(); }
+    if(wrong>=2){ ctx.beginPath(); ctx.moveTo(120,70); ctx.lineTo(120,110); ctx.stroke(); }
+    if(wrong>=3){ ctx.beginPath(); ctx.moveTo(120,80); ctx.lineTo(105,95); ctx.stroke(); }
+    if(wrong>=4){ ctx.beginPath(); ctx.moveTo(120,80); ctx.lineTo(135,95); ctx.stroke(); }
+    if(wrong>=5){ ctx.beginPath(); ctx.moveTo(120,110); ctx.lineTo(107,135); ctx.stroke(); }
+    if(wrong>=6){ ctx.beginPath(); ctx.moveTo(120,110); ctx.lineTo(133,135); ctx.stroke(); }
+  }
+  setup();
+}
+
+/* ========== BIKE JUMP (endless runner) ========== */
+function init_bikerace(panel){
+  panel.innerHTML = `<div class="center"><div class="score">Score: <span id="bikeScore">0</span></div>
+    <canvas id="bikeCanvas" width="320" height="200"></canvas>
+    <div class="msg">Space/Up = jump, obstacles se bacho</div></div>`;
+  const canvas=document.getElementById('bikeCanvas'); const ctx=canvas.getContext('2d');
+  const groundY=160;
+  let bikeY=groundY, vel=0, jumping=false, obstacles=[], score=0, over=false, frame=0, speed=4;
+
+  function jump(){
+    if(over){ restart(); return; }
+    if(!jumping){ vel=-9; jumping=true; }
+  }
+  function keyHandler(e){ if(e.code==='Space'||e.key==='ArrowUp'){ e.preventDefault(); jump(); } }
+  document.addEventListener('keydown', keyHandler);
+  canvas.addEventListener('click', jump);
+
+  function restart(){
+    bikeY=groundY; vel=0; jumping=false; obstacles=[]; score=0; over=false; frame=0; speed=4;
+    document.getElementById('bikeScore').textContent=0;
+  }
+
+  function step(){
+    if(!over){
+      frame++;
+      vel+=0.6; bikeY+=vel;
+      if(bikeY>=groundY){ bikeY=groundY; vel=0; jumping=false; }
+      if(frame%Math.max(50,90-Math.floor(score/3))===0){
+        obstacles.push({x:320, w:18+Math.random()*14, h:20+Math.random()*20});
+      }
+      obstacles.forEach(o=>o.x-=speed);
+      obstacles = obstacles.filter(o=>{
+        if(o.x<-30){ score++; document.getElementById('bikeScore').textContent=score; setBest('bikerace',score); speed=Math.min(9,4+score*0.08); return false; }
+        return true;
+      });
+      obstacles.forEach(o=>{
+        const bikeBox={x:50,y:bikeY-24,w:28,h:24};
+        const obsBox={x:o.x,y:groundY-o.h+16,w:o.w,h:o.h};
+        if(bikeBox.x<obsBox.x+obsBox.w && bikeBox.x+bikeBox.w>obsBox.x && bikeBox.y<obsBox.y+obsBox.h && bikeBox.y+bikeBox.h>obsBox.y){
+          over=true; setBest('bikerace',score);
+        }
+      });
+    }
+    ctx.fillStyle='#1a2540'; ctx.fillRect(0,0,320,200);
+    ctx.strokeStyle='#444'; ctx.beginPath(); ctx.moveTo(0,groundY+16); ctx.lineTo(320,groundY+16); ctx.stroke();
+    ctx.fillStyle='#ff3ea5';
+    obstacles.forEach(o=>ctx.fillRect(o.x, groundY-o.h+16, o.w, o.h));
+    ctx.fillStyle='#2de2e6';
+    ctx.fillRect(50, bikeY-24, 28, 24);
+    ctx.beginPath(); ctx.arc(56, bikeY+2, 7,0,7); ctx.arc(72, bikeY+2, 7,0,7); ctx.fill();
+    if(over){
+      ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(0,70,320,60);
+      ctx.fillStyle='#fff'; ctx.font='16px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('Crash! Score: '+score+' — click/space to retry', 160, 105);
+    }
+  }
+  restart();
+  const iv=setInterval(step, 20);
+  return ()=>{ clearInterval(iv); document.removeEventListener('keydown', keyHandler); };
+}
+
+/* ========== WORDLE ========== */
+function init_wordle(panel){
+  const words = ['PLANE','GRAPE','STORM','CHESS','LIGHT','FRAME','SPACE','BRAVE','TRAIN','CLOUD','HOUSE','MUSIC','QUIET','PIZZA','SMILE'];
+  const target = words[Math.floor(Math.random()*words.length)];
+  let attempts=[]; let current=''; let over=false;
+  panel.innerHTML = `<div class="center">
+    <div id="wordleGrid" style="display:flex; flex-direction:column; gap:6px; align-items:center; margin:14px 0;"></div>
+    <input type="text" id="wordleInput" maxlength="5" style="text-transform:uppercase; width:140px;" placeholder="5 letters">
+    <button class="btn" onclick="wordleSubmit()">Enter</button>
+    <div class="msg" id="wordleMsg">5-letter word guess karo, 6 chances</div>
+  </div>`;
+  function render(){
+    const grid=document.getElementById('wordleGrid');
+    grid.innerHTML='';
+    for(let r=0;r<6;r++){
+      const rowDiv=document.createElement('div');
+      rowDiv.style.display='flex'; rowDiv.style.gap='6px';
+      const guess = attempts[r];
+      for(let c=0;c<5;c++){
+        const cell=document.createElement('div');
+        cell.style.cssText='width:40px;height:40px;border:2px solid rgba(255,255,255,0.15);border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;';
+        if(guess){
+          const letter=guess[c];
+          cell.textContent=letter;
+          if(target[c]===letter){ cell.style.background='#2de2e6'; cell.style.color='#000'; }
+          else if(target.includes(letter)){ cell.style.background='#ffb703'; cell.style.color='#000'; }
+          else{ cell.style.background='#333'; }
+        } else if(r===attempts.length){
+          cell.textContent = current[c]||'';
+          cell.style.background='var(--bg2)';
+        } else {
+          cell.style.background='var(--bg2)';
+        }
+        rowDiv.appendChild(cell);
+      }
+      grid.appendChild(rowDiv);
+    }
+  }
+  window.wordleSubmit = function(){
+    if(over) return;
+    const val = document.getElementById('wordleInput').value.toUpperCase();
+    if(val.length!==5){ document.getElementById('wordleMsg').textContent='5 letters ka word likho'; return; }
+    attempts.push(val);
+    document.getElementById('wordleInput').value='';
+    current='';
+    if(val===target){
+      over=true; setBest('wordle', 7-attempts.length);
+      document.getElementById('wordleMsg').textContent='Sahi! 🎉 Word tha: '+target;
+    } else if(attempts.length>=6){
+      over=true;
+      document.getElementById('wordleMsg').textContent='Chances khatam. Word tha: '+target;
+    }
+    render();
+  };
+  document.getElementById('wordleInput').addEventListener('keydown', e=>{
+    if(e.key==='Enter') wordleSubmit();
+  });
+  render();
+}
+
+/* ========== STACK TOWER ========== */
+function init_stack(panel){
+  panel.innerHTML = `<div class="center"><div class="score">Score: <span id="stackScore">0</span></div>
+    <canvas id="stackCanvas" width="280" height="420"></canvas>
+    <div class="msg">Click/Space se block drop karo</div></div>`;
+  const canvas=document.getElementById('stackCanvas'); const ctx=canvas.getContext('2d');
+  let blocks=[], current, score=0, over=false, camY=0;
+  const colorsList=['#2de2e6','#ff3ea5','#ffb703','#7b61ff','#4ecdc4','#ff6b6b'];
+
+  function restart(){
+    blocks=[{x:90,y:400,w:100,h:20,color:colorsList[0]}];
+    current={x:0,y:380,w:100,h:20,dir:1,speed:2.2,color:colorsList[1]};
+    score=0; over=false; camY=0;
+    document.getElementById('stackScore').textContent=0;
+  }
+  function drop(){
+    if(over){ restart(); return; }
+    const last=blocks[blocks.length-1];
+    const overlapStart=Math.max(current.x,last.x);
+    const overlapEnd=Math.min(current.x+current.w,last.x+last.w);
+    const overlapW=overlapEnd-overlapStart;
+    if(overlapW<=4){ over=true; setBest('stack',score); return; }
+    const newBlock={x:overlapStart,y:current.y,w:overlapW,h:20,color:current.color};
+    blocks.push(newBlock);
+    score++; document.getElementById('stackScore').textContent=score;
+    setBest('stack',score);
+    const nextY = current.y-20;
+    current={x: (current.dir>0? -20: 300), y:nextY, w:overlapW, dir: (blocks.length%2===0?1:-1), speed:Math.min(6,2.2+score*0.12), color:colorsList[blocks.length%colorsList.length]};
+    if(nextY < camY+140) camY = nextY-140;
+  }
+  function keyHandler(e){ if(e.code==='Space'){ e.preventDefault(); drop(); } }
+  document.addEventListener('keydown', keyHandler);
+  canvas.addEventListener('click', drop);
+
+  function step(){
+    if(!over){
+      current.x += current.dir*current.speed;
+      if(current.x<-20 || current.x+current.w>300) current.dir*=-1;
+    }
+    ctx.fillStyle='#0e1330'; ctx.fillRect(0,0,280,420);
+    ctx.save();
+    ctx.translate(0,-camY);
+    blocks.forEach(b=>{ ctx.fillStyle=b.color; ctx.fillRect(b.x,b.y,b.w,b.h); });
+    if(!over){ ctx.fillStyle=current.color; ctx.fillRect(current.x,current.y,current.w,current.h); }
+    ctx.restore();
+    if(over){
+      ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(0,180,280,60);
+      ctx.fillStyle='#fff'; ctx.font='16px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('Game Over! Score: '+score+' — click to retry', 140, 215);
+    }
+  }
+  restart();
+  const iv=setInterval(step,20);
+  return ()=>{ clearInterval(iv); document.removeEventListener('keydown', keyHandler); };
+}
+
+/* ========== FRUIT SLICE ========== */
+function init_fruitslice(panel){
+  panel.innerHTML = `<div class="center"><div class="score">Score: <span id="fruitScore">0</span> | Lives: <span id="fruitLives">3</span></div>
+    <canvas id="fruitCanvas" width="320" height="420"></canvas>
+    <div class="msg">Fruits par click/drag karo, bombs 💣 avoid karo</div></div>`;
+  const canvas=document.getElementById('fruitCanvas'); const ctx=canvas.getContext('2d');
+  const items=[]; let score=0, lives=3, over=false, frame=0;
+  const fruitTypes=[{e:'🍉',c:'#ff6b6b'},{e:'🍎',c:'#ff3ea5'},{e:'🍊',c:'#ffb703'},{e:'🍇',c:'#7b61ff'},{e:'🍋',c:'#f4e04d'}];
+
+  function spawn(){
+    const isBomb = Math.random()<0.18;
+    const type = isBomb? {e:'💣',c:'#333'} : fruitTypes[Math.floor(Math.random()*fruitTypes.length)];
+    items.push({
+      x: 40+Math.random()*240, y:420, vy:-(9+Math.random()*3), vx:(Math.random()-0.5)*2,
+      r:22, type, isBomb, sliced:false, rot:0
+    });
+  }
+  function sliceAt(mx,my){
+    if(over) return;
+    items.forEach(it=>{
+      if(it.sliced) return;
+      const d=Math.hypot(it.x-mx, it.y-my);
+      if(d<it.r+8){
+        it.sliced=true;
+        if(it.isBomb){ lives--; document.getElementById('fruitLives').textContent=lives; if(lives<=0){ over=true; setBest('fruitslice',score); } }
+        else{ score++; document.getElementById('fruitScore').textContent=score; setBest('fruitslice',score); }
+      }
+    });
+  }
+  function pointerHandler(e){
+    e.preventDefault();
+    const rect=canvas.getBoundingClientRect();
+    const points = e.touches ? Array.from(e.touches) : [e];
+    points.forEach(p=>{
+      const mx=(p.clientX-rect.left)*(320/rect.width);
+      const my=(p.clientY-rect.top)*(420/rect.height);
+      sliceAt(mx,my);
+    });
+    if(over){ restart(); }
+  }
+  canvas.addEventListener('mousedown', pointerHandler);
+  canvas.addEventListener('touchstart', pointerHandler);
+
+  function restart(){
+    items.length=0; score=0; lives=3; over=false; frame=0;
+    document.getElementById('fruitScore').textContent=0;
+    document.getElementById('fruitLives').textContent=3;
+  }
+
+  function step(){
+    if(!over){
+      frame++;
+      if(frame%45===0) spawn();
+      items.forEach(it=>{
+        it.vy+=0.25; it.x+=it.vx; it.y+=it.vy; it.rot+=0.05;
+      });
+      for(let i=items.length-1;i>=0;i--){
+        if(items[i].y>460) items.splice(i,1);
+        else if(items[i].sliced && items[i].y>460) items.splice(i,1);
+      }
+    }
+    ctx.fillStyle='#0b0e1a'; ctx.fillRect(0,0,320,420);
+    items.forEach(it=>{
+      if(it.sliced) return;
+      ctx.save();
+      ctx.translate(it.x,it.y); ctx.rotate(it.rot);
+      ctx.font='36px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText(it.type.e,0,0);
+      ctx.restore();
+    });
+    if(over){
+      ctx.fillStyle='rgba(0,0,0,0.6)'; ctx.fillRect(0,170,320,80);
+      ctx.fillStyle='#fff'; ctx.font='16px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('Game Over! Score: '+score, 160, 205);
+      ctx.fillText('Click to retry', 160, 228);
+    }
+  }
+  restart();
+  const iv=setInterval(step,20);
+  return ()=>{ clearInterval(iv); canvas.removeEventListener('mousedown', pointerHandler); canvas.removeEventListener('touchstart', pointerHandler); };
+}
+</script>
+</body>
+</html>

@@ -103,6 +103,21 @@ class RetroAudioEngine {
     this.vibrate([30, 20, 30, 20, 60]);
   }
 
+  nitro() {
+    this.playTone(200, 'sawtooth', 0.4, 0.22, 1100);
+    this.vibrate([30, 40, 50]);
+  }
+
+  screech() {
+    this.playTone(950, 'sawtooth', 0.15, 0.12, 420);
+  }
+
+  engineRev(speedNorm) {
+    if (this.muted) return;
+    const freq = 60 + Math.min(220, speedNorm * 180);
+    this.playTone(freq, 'sawtooth', 0.05, 0.05);
+  }
+
   vibrate(pattern) {
     if (navigator.vibrate) {
       try {

@@ -1,0 +1,14 @@
+{
+  "name": "neon-arcade",
+  "version": "1.0.0",
+  "description": "23 mini-games in one retro neon web arcade",
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "build": "echo 'Static app ready'"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

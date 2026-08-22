@@ -1,0 +1,6 @@
+{
+  "name": "Neon Arcade",
+  "description": "A retro-themed neon arcade featuring 28 playable mini-games, Web Audio synthesizer sound effects, smart recommendations, daily challenges, XP progression, and touch controls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
